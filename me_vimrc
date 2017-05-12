@@ -1,0 +1,139 @@
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" cscope setting
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+if has("cscope")
+  set csprg=/usr/bin/cscope
+  set csto=1
+  set cst
+  set nocsverb
+ " cs add /home/liyun/kernel-android/cscope.out
+  cs add /home/liyun/cscope.out
+  set csverb
+endif
+
+syntax on
+"set fencs=utf-8,cp936
+set fenc=utf-8
+set fencs=utf-8,usc-bom,euc-jp,gb18030,gbk,gb2312,cp936
+set mouse=v
+set hlsearch
+set incsearch
+set showcmd
+set updatetime=100
+set nu
+set relativenumber
+set ai
+set tabstop=4
+let Tlist_WinWidth=20
+set showmatch
+
+let Tlist_File_Fold_Auto_Close=1
+"let Tlist_Auto_Open=1
+set tags=tags;
+"set autochdir;
+let Tlist_Ctags_Cmd="/usr/bin/ctags"
+let Tlist_Show_One_File=1
+let Tlist_Exit_OnlyWindow=1
+let Tlist_Highlight_Tag_On_Buffer=0
+
+set clipboard=unnamed
+
+nnoremap  :set invpaste paste? imap :set invpaste paste? set pastetoggle=
+
+set nocompatible "与vi不一致
+filetype off
+set rtp+=~/.vim/bundle/vundle/ "载入特定目录插件
+"set rtp+=$HOME/.vim/bundle/vundle/ "Windows下
+call vundle#rc()
+"plugin 
+"vimscripts账号下的项目直接填写名称即可
+Bundle 'snipMate'
+"其它需填写用户/资源名称
+Bundle 'gmarik/vundle'
+"非github上资源
+Bundle 'git://git.wincent.com/command-t.git'
+"indent
+Bundle 'php.vim-html-enhanced'
+"color
+Bundle 'Lucius'
+filetype plugin indent on  
+
+"Bundle 'bling/vim-airline'
+"Plugin 'vim-airline/vim-airline-themes'
+
+set encoding=utf-8
+set langmenu=zh_CN.UTF-8
+" 设置打开文件的编码格式  
+set fileencodings=ucs-bom,utf-8,cp936,gb18030,big5,euc-jp,euc-kr,latin1 
+set fileencoding=utf-8
+"解决菜单乱码
+source $VIMRUNTIME/delmenu.vim
+source $VIMRUNTIME/menu.vim
+"解决consle输出乱码
+"set termencoding = cp936  
+"设置中文提示
+language messages zh_CN.utf-8 
+"设置中文帮助
+set helplang=cn
+"设置为双字宽显示，否则无法完整显示如:☆
+set ambiwidth=double
+
+
+set statusline=%F%m%r%h%w\ [%{&ff}]\ [%Y]\ [%l,%v][%p%%]\ 
+set laststatus=2 " 总是显示状态行
+
+Plugin 'mileszs/ack.vim'
+let g:ackprg = 'ag --nogroup --nocolor --colum'
+set rtp+=~/.fzf
+Bundle 'ctrlpvim/ctrlp.vim'
+let mapleader=";"
+let g:ctrlp_map = '<leader>p'
+let g:ctrlp_cmd = 'CtrlP'
+map <leader>f :CtrlPMRU<CR>
+let g:ctrlp_custom_ignore = {
+    \ 'dir':  '\v[\/]\.(git|hg|svn|rvm)$',
+    \ 'file': '\v\.(exe|so|dll|zip|tar|tar.gz|pyc)$',
+    \ }
+let g:ctrlp_working_path_mode=0
+let g:ctrlp_match_window_bottom=1
+let g:ctrlp_max_height=15
+let g:ctrlp_match_window_reversed=0
+let g:ctrlp_mruf_max=500
+let g:ctrlp_follow_symlinks=1
+Bundle 'Lokaltog/vim-easymotion'
+
+Bundle 'Shougo/vimproc.vim'
+Bundle 'Shougo/vimshell.vim'
+Bundle 'Shougo/neomru.vim'
+
+Plugin 'Shougo/unite.vim'
+
+" Unite
+let g:unite_source_history_yank_enable = 1
+call unite#filters#matcher_default#use(['matcher_fuzzy'])
+nnoremap <leader>t :<C-u>Unite -no-split -buffer-name=files   -start-insert file_rec/async:!<cr>
+nnoremap <leader>f :<C-u>Unite -no-split -buffer-name=files   -start-insert file<cr>
+nnoremap <leader>r :<C-u>Unite -no-split -buffer-name=mru     -start-insert file_mru<cr>
+nnoremap <leader>o :<C-u>Unite -no-split -buffer-name=outline -start-insert outline<cr>
+nnoremap <leader>y :<C-u>Unite -no-split -buffer-name=yank    history/yank<cr>
+nnoremap <leader>e :<C-u>Unite -no-split -buffer-name=buffer  buffer<cr>
+
+autocmd FileType unite call s:unite_settings()
+function! s:unite_settings()
+  imap <buffer> <C-j> <Plug>(unite_select_next_line)
+  imap <buffer> <C-k> <Plug>(unite_select_previous_line)
+
+  nmap <silent><buffer><expr> Enter unite#do_action('switch')
+  nmap <silent><buffer><expr> <C-t> unite#do_action('tabswitch')
+  nmap <silent><buffer><expr> <C-h> unite#do_action('splitswitch')
+  nmap <silent><buffer><expr> <C-v> unite#do_action('vsplitswitch')
+
+  imap <silent><buffer><expr> Enter unite#do_action('switch')
+  imap <silent><buffer><expr> <C-t> unite#do_action('tabswitch')
+  imap <silent><buffer><expr> <C-h> unite#do_action('splitswitch')
+  imap <silent><buffer><expr> <C-v> unite#do_action('vsplitswitch')
+
+  map <buffer> <C-p> <Plug>(unite_toggle_auto_preview)
+
+  nnoremap <ESC> :UniteClose<cr>
+endfunction
