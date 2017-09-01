@@ -1,0 +1,221 @@
+#!/bin/bash
+
+MAP_FILE_PATH="/dev/shm/avcap_map_info"
+
+function usage()
+{
+	echo "Usage: avcap_dev_map_gen [options...]"
+	echo "Options: "
+	echo -ne " -a, --all\t\tGet all informations of all ProCapture devices.\n"
+	echo -ne " --number-of-cards\tGet the number of capture cards.\n"
+	echo -ne " --card-info c\t\tGet the information of a specific card (NO. c).\n"
+	echo -ne " --card-addr c\t\tGet the bus address for a specific card (NO. c).\n"
+	echo -ne " --number-of-channels c\tGet the number of channels of a specific card (NO. c).\n"
+	echo -ne " --channel-info c,p\tGet the information of channel NO. p on NO. c card.\n"
+	echo -ne " --channel-addr c,p\tGet the bus address of channel NO. p on NO. c card.\n"
+	echo -ne " --channel-id c,p\tGet the ID of channel NO. p on NO. c card.\n"
+	echo -ne "   Channel id may be changed after a capture card is pluged out/in.\n"
+	echo -ne " --snd-card-no id\tGet the sound card ID by channel ID.\n"
+}
+
+if [ "$#" == "0" ]; then
+	usage;
+	exit 1;
+fi
+
+if [ ! -f ${MAP_FILE_PATH} ]; then
+
+	for vendor_file in `find /sys -type f -name vendor`; do
+		result="`grep "0x1cd7" ${vendor_file}`"
+		if [ "${result}" == "0x1cd7" ]; then
+			path=${vendor_file%/vendor}
+			audio_path=${vendor_file%/vendor}/sound
+			if [ `find ${audio_path} -type d -name "card*" | wc -l` != '1' ]; then
+				snd_card_no="N/A"
+			else
+				snd_card_no=`find ${audio_path} -type d -name "card*"`
+				snd_card_no=${snd_card_no##*/card}
+			fi
+			device_addr="${path#*pci}"
+			cardnum="`ls ${path}/video4linux`"
+			cardnum="${cardnum#*o}"
+			echo -ne "${cardnum} " >> ${MAP_FILE_PATH}
+			echo -ne "${device_addr} " >> ${MAP_FILE_PATH}
+			pid=`cat "${path}/device"`
+			if [ "${pid}" == "0x0011" ]; then
+				echo -ne "S " >> ${MAP_FILE_PATH}
+				path=${path%/*}
+				path=${path#*pci}
+				echo -ne "${path} " >> ${MAP_FILE_PATH}
+			elif [ "${pid}" == "0x0010" ]; then
+				echo -ne "M " >> ${MAP_FILE_PATH}
+				path=${path%/*}
+				path=${path%/*}
+				path=${path%/*}
+				path=${path#*pci}
+				echo -ne "${path} " >> ${MAP_FILE_PATH}
+			fi
+			echo -ne "${snd_card_no}" >> ${MAP_FILE_PATH}
+			echo -ne "\n" >> ${MAP_FILE_PATH}
+			sort ${MAP_FILE_PATH} > ${MAP_FILE_PATH}.tmp
+			mv ${MAP_FILE_PATH}.tmp ${MAP_FILE_PATH}
+		fi
+	done
+
+	last_bridge_addr="-1"
+	bridge_num=-1
+	port_num=0
+	while read -r port_id dev_addr type bridge_addr snd_card_no; do
+		if [ "${last_bridge_addr}" != "${bridge_addr}" ]; then
+			last_bridge_addr=${bridge_addr}
+			port_num=0
+			bridge_num=`expr ${bridge_num} + 1`
+		else
+			port_num=`expr ${port_num} + 1`
+		fi
+		echo "${bridge_num} ${bridge_addr} ${port_num} ${dev_addr} ${type} ${snd_card_no} ${port_id}" >> ${MAP_FILE_PATH}.tmp
+	done < ${MAP_FILE_PATH};
+	mv ${MAP_FILE_PATH}.tmp ${MAP_FILE_PATH}
+fi
+
+function allinfo()
+{
+	echo -ne "\033[31mCardNum  CardAddr  ChannelNum  ChannelAddr  Type  SndCardID  ChannelID\033[0m\n"
+	if [ -f ${MAP_FILE_PATH} ]; then
+		cat ${MAP_FILE_PATH}
+	fi
+}
+
+function countcard()
+{
+	cat ${MAP_FILE_PATH} | awk -F ' ' '{print $2}' | uniq | wc -l
+}
+
+function cardinfo()
+{
+	index=$1
+#	echo -ne "\033[31mChannelNum  ChannelAddr  Type  ChannelID\033[0m\n"
+	while read -r bridge_num bridge_addr port_num dev_addr type snd_card_no port_id; do
+		if [ "${bridge_num}" == "${index}" ]; then
+			echo "${port_num} ${dev_addr} ${type} ${snd_card_no} ${port_id}"
+		fi
+	done < ${MAP_FILE_PATH};
+}
+
+function cardaddr()
+{
+	index=$1
+	while read -r bridge_num bridge_addr port_num dev_addr type snd_card_no port_id; do
+		if [ "${bridge_num}" == "${index}" ]; then
+			echo "${bridge_addr}"
+			return
+		fi
+	done < ${MAP_FILE_PATH};
+}
+
+function numberofchannels()
+{
+	index=$1
+	count=0
+	while read -r bridge_num bridge_addr port_num dev_addr type snd_card_no port_id; do
+		if [ "${bridge_num}" == "${index}" ]; then
+			count=`expr ${count} + 1`
+		fi
+	done < ${MAP_FILE_PATH};
+	echo ${count}
+}
+
+function channelinfo()
+{
+	param="$1"
+	cardno=${param%,*}
+	channelno=${param#*,}
+#	echo -ne "\033[31mChannelAddr  Type  ChannelID\033[0m\n"
+	while read -r bridge_num bridge_addr port_num dev_addr type snd_card_no port_id; do
+		if [ "${bridge_num}" == "${cardno}" -a "${port_num}" == "${channelno}" ]; then
+			echo "${dev_addr} ${type} ${snd_card_no} ${port_id}"
+		fi
+	done < ${MAP_FILE_PATH};
+}
+
+function channeladdr()
+{
+	param="$1"
+	cardno=${param%,*}
+	channelno=${param#*,}
+	while read -r bridge_num bridge_addr port_num dev_addr type snd_card_no port_id; do
+		if [ "${bridge_num}" == "${cardno}" -a "${port_num}" == "${channelno}" ]; then
+			echo "${dev_addr}"
+			break
+		fi
+	done < ${MAP_FILE_PATH};
+}
+
+function channelid()
+{
+	param="$1"
+	cardno=${param%,*}
+	channelno=${param#*,}
+	while read -r bridge_num bridge_addr port_num dev_addr type snd_card_no port_id; do
+		if [ "${bridge_num}" == "${cardno}" -a "${port_num}" == "${channelno}" ]; then
+			echo "${port_id}"
+			break
+		fi
+	done < ${MAP_FILE_PATH};
+}
+
+function sndcardno()
+{
+	id=$1
+	while read -r bridge_num bridge_addr port_num dev_addr type snd_card_no port_id; do
+		if [ "${port_id}" == "${id}" ]; then
+			echo "${snd_card_no}"
+			break
+		fi
+	done < ${MAP_FILE_PATH};
+}
+
+parser=`getopt -o a --long all,number-of-cards,card-info:,card-addr:,number-of-channels:,channel-info:,channel-addr:,channel-id:,snd-card-no: -n 'example.bash' -- "$@"`
+if [ $? != 0 ]; then
+	usage
+	exit 1
+fi
+
+eval set -- "$parser"
+
+while true ; do
+	case "$1" in
+		-a|--all)
+			allinfo;
+			shift;;
+		--number-of-cards)
+			countcard;
+			shift;;
+		--card-info)
+			cardinfo $2;
+			shift 2;;
+		--card-addr)
+			cardaddr $2;
+			shift 2;;
+		--number-of-channels)
+			numberofchannels $2;
+			shift 2;;
+		--channel-info)
+			channelinfo $2;
+			shift 2;;
+		--channel-addr)
+			channeladdr $2;
+			shift 2;;
+		--channel-id)
+			channelid $2;
+			shift 2;;
+		--snd-card-no)
+			sndcardno $2;
+			shift 2;;
+		--) shift ; break ;;
+		*) echo "Internal error!" ; exit 1 ;;
+        esac
+done
+
+exit 0
+
